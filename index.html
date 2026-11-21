@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generator Slip Gaji - RS. Bhakti Husada Cikarang</title>
+  
+  <!-- Libraries via CDN -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0f4c81;
+      --primary-dark: #09355c;
+      --accent: #16a34a;
+      --wa-color: #25D366;
+      --mail-color: #ea4335;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* NAVBAR & CONTROLS (HIDDEN ON PRINT) */
+    .no-print {
+      max-width: 1280px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+
+    .header-card {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 22px 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(15, 76, 129, 0.2);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header-card h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+    }
+
+    .header-card p {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .control-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .grid-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      align-items: end;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #334155;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="file"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.92rem;
+      background: #f8fafc;
+    }
+
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+      text-decoration: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary { background: var(--primary); }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-success { background: var(--accent); }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+    .btn-dark { background: #334155; }
+    .btn-dark:hover:not(:disabled) { background: #1e293b; }
+    .btn-wa { background: var(--wa-color); color: #064e3b; }
+    .btn-wa:hover:not(:disabled) { background: #1ebe5d; }
+    .btn-mail { background: var(--mail-color); }
+    .btn-mail:hover:not(:disabled) { background: #c53929; }
+    .btn-outline {
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+    .btn-outline:hover:not(:disabled) { background: #eff6ff; }
+
+    /* DATA TABLE */
+    .table-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-box {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      min-width: 240px;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    table.data-table th,
+    table.data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    table.data-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    table.data-table tr:hover {
+      background: #f1f5f9;
+    }
+
+    .text-right { text-align: right !important; }
+    .text-center { text-align: center !important; }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .badge-warn { background: #fef9c3; color: #854d0e; }
+
+    .btn-sm {
+      padding: 5px 9px;
+      font-size: 0.78rem;
+      border-radius: 6px;
+    }
+
+    /* SLIP GAJI DESIGN (EXACT MATCH TO TEMPLATE SLIP GAJI.xlsx) */
+    .preview-wrapper {
+      max-width: 210mm;
+      margin: 0 auto 40px auto;
+    }
+
+    .a4-page {
+      background: white;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 8mm 10mm;
+      margin: 0 auto 20px auto;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .slip-box {
+      width: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9.5pt;
+      color: #000;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+      border-bottom: 1.5px dashed #64748b;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .slip-box:last-child {
+      border-bottom: 1.5px dashed #64748b;
+    }
+
+    .slip-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .slip-table td {
+      padding: 1.5px 4px;
+      vertical-align: middle;
+      font-size: 8.8pt;
+    }
+
+    .hospital-title {
+      font-size: 11pt !important;
+      font-weight: bold;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    .hospital-addr {
+      font-size: 8.8pt !important;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .slip-title {
+      font-size: 10.5pt !important;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    .slip-period {
+      font-size: 9pt !important;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    .border-b-med { border-bottom: 1.5px solid #000; }
+    .border-t-med { border-top: 1.5px solid #000; }
+    .border-tb-med {
+      border-top: 1.5px solid #000;
+      border-bottom: 1.5px solid #000;
+    }
+    .border-l-dash { border-left: 1px dashed #475569; }
+    .border-r-dash { border-right: 1px dashed #475569; }
+    .border-b-dash { border-bottom: 1px dashed #94a3b8; }
+    .box-thp {
+      border: 1.5px solid #000;
+      background-color: #f1f5f9;
+      font-weight: bold;
+      text-align: center;
+      font-size: 9.5pt !important;
+      padding: 3px 6px !important;
+    }
+
+    .bold { font-weight: bold; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .center { text-align: center; }
+
+    /* MODAL PREVIEW */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 860px;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+    }
+
+    /* PRINT STYLES */
+    @media print {
+      body {
+        background: white !important;
+      }
+      .no-print, .modal, .status-toast {
+        display: none !important;
+      }
+      .preview-wrapper {
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+      }
+      .a4-page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 5mm 8mm !important;
+        width: 100% !important;
+        min-height: auto !important;
+        page-break-after: always;
+        break-after: page;
+      }
+      .a4-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 4mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- DASHBOARD KONTROL (TIDAK IKUT TERCETAK) -->
+  <div class="no-print">
+    <div class="header-card">
+      <div>
+        <h1>Sistem Otomatisasi Slip Gaji</h1>
+        <p>RS. Bhakti Husada Cikarang &bull; Upload Excel, Cetak PDF (3 Slip/A4), Export Excel & Kirim WA/Email</p>
+      </div>
+      <div style="text-align: right; font-size: 0.82rem; opacity: 0.9;">
+        <div>Formula THP: <strong>Gross Prorate - Total Potongan + Koreksi</strong></div>
+        <div>Support kolom tambahan: <strong>Email</strong> &amp; <strong>No WA</strong></div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="grid-controls">
+        <div class="form-group">
+          <label for="excelFile">1. Upload File Data Gaji (.xlsx / .xls)</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        </div>
+        <div class="form-group">
+          <label for="periodeInput">2. Periode Bulan Slip</label>
+          <input type="text" id="periodeInput" value="OKTOBER 2026" />
+        </div>
+        <div class="form-group">
+          <label for="tanggalCetakInput">3. Tanggal TTD HRD</label>
+          <input type="text" id="tanggalCetakInput" value="31 Oktober 2026" />
+        </div>
+        <div class="form-group">
+          <label for="hrdNameInput">4. Jabatan / Penandatangan</label>
+          <input type="text" id="hrdNameInput" value="HRD" />
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button id="btnPrintAll" class="btn btn-primary" disabled onclick="window.print()">
+          🖨️ Print Langsung (A4 - 3 Slip/Hal)
+        </button>
+        <button id="btnDownloadAllPdf" class="btn btn-dark" disabled onclick="downloadMergedPdf()">
+          📄 Download PDF Gabungan (Semua)
+        </button>
+        <button id="btnDownloadZipPdf" class="btn btn-outline" disabled onclick="downloadZipIndividualPdf()">
+          🗜️ Download ZIP PDF Satuan (Per Orang)
+        </button>
+        <button id="btnDownloadExcel" class="btn btn-success" disabled onclick="exportFormattedExcel()">
+          📊 Download Excel Slip Gaji (.xlsx)
+        </button>
+      </div>
+    </div>
+
+    <!-- TABEL DAFTAR KARYAWAN -->
+    <div class="table-card" id="employeeTableSection" style="display: none;">
+      <div class="table-header">
+        <div>
+          <strong style="font-size: 1.05rem;">Daftar Karyawan (<span id="empCount">0</span> Orang)</strong>
+          <div style="font-size: 0.8rem; color: #64748b;">Klik tombol aksi di sebelah kanan untuk Preview, Download PDF Satuan, atau Kirim WA/Email.</div>
+        </div>
+        <input type="text" id="searchInput" class="search-box" placeholder="Cari Nama / NIK / Bagian..." oninput="filterTable()" />
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>NIK</th>
+            <th>Nama Karyawan</th>
+            <th>Bagian</th>
+            <th class="text-right">Gross Prorate</th>
+            <th class="text-right">Total Potongan</th>
+            <th class="text-right">Koreksi</th>
+            <th class="text-right">Take Home Pay</th>
+            <th>Kontak (WA / Email)</th>
+            <th class="text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="employeeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AREA RENDER SLIP GAJI (UNTUK PREVIEW A4 & PRINT) -->
+  <div class="preview-wrapper" id="slipContainer"></div>
+
+  <!-- MODAL PREVIEW SATUAN -->
+  <div class="modal" id="singleModal">
+    <div class="modal-content">
+      <div id="singleModalBody"></div>
+      <div class="modal-footer" id="singleModalFooter"></div>
+    </div>
+  </div>
+
+  <div class="status-toast" id="toast"></div>
+
+  <script>
+    let employees = [];
+
+    function showToast(msg, duration = 3500) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => { t.style.display = 'none'; }, duration);
+    }
+
+    function formatNumber(num) {
+      if (num === null || num === undefined || isNaN(num) || Math.round(num) === 0) return '-';
+      const rounded = Math.round(num);
+      if (rounded < 0) {
+        return '(' + Math.abs(rounded).toLocaleString('id-ID') + ')';
+      }
+      return rounded.toLocaleString('id-ID');
+    }
+
+    function formatRupiah(num) {
+      const rounded = Math.round(num || 0);
+      if (rounded < 0) {
+        return 'Rp (' + Math.abs(rounded).toLocaleString('id-ID') + ')';
+      }
+      return 'Rp ' + rounded.toLocaleString('id-ID');
+    }
+
+    function terbilang(nilai) {
+      const angka = Math.round(Math.abs(nilai || 0));
+      if (angka === 0) return 'Nol Rupiah';
+      const huruf = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+
+      function baca(n) {
+        if (n < 12) return ' ' + huruf[n];
+        if (n < 20) return baca(n - 10) + ' Belas';
+        if (n < 100) return baca(Math.floor(n / 10)) + ' Puluh' + baca(n % 10);
+        if (n < 200) return ' Seratus' + baca(n - 100);
+        if (n < 1000) return baca(Math.floor(n / 100)) + ' Ratus' + baca(n % 100);
+        if (n < 2000) return ' Seribu' + baca(n - 1000);
+        if (n < 1000000) return baca(Math.floor(n / 1000)) + ' Ribu' + baca(n % 1000);
+        if (n < 1000000000) return baca(Math.floor(n / 1000000)) + ' Juta' + baca(n % 1000000);
+        if (n < 1000000000000) return baca(Math.floor(n / 1000000000)) + ' Miliar' + baca(n % 1000000000);
+        return '';
+      }
+
+      const prefix = nilai < 0 ? 'Minus ' : '';
+      return '(' + prefix + baca(angka).trim().replace(/\s+/g, ' ') + ' Rupiah)';
+    }
+
+    function parseNum(val) {
+      if (val === null || val === undefined || val === '') return 0;
+      if (typeof val === 'number') return val;
+      const cleaned = String(val).replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // Event Listener Upload Excel
+    document.getElementById('excelFile').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames.includes('DATA UPLOAD') ? 'DATA UPLOAD' : workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+          // Deteksi kolom tambahan (Email & WA) dari baris header 1-3
+          let emailColIdx = -1;
+          let waColIdx = -1;
+          for (let r = 0; r < Math.min(4, rows.length); r++) {
+            rows[r].forEach((cellVal, cIdx) => {
+              const txt = String(cellVal || '').toLowerCase().trim();
+              if (txt.includes('email') || txt.includes('e-mail')) emailColIdx = cIdx;
+              if (txt === 'wa' || txt.includes('whatsapp') || txt.includes('no wa') || txt.includes('no. wa') || txt.includes('hp') || txt.includes('telp')) {
+                waColIdx = cIdx;
+              }
+            });
+          }
+
+          // Data karyawan mulai dari baris ke-4 (index 3) karena baris 1-3 adalah header
+          const parsedList = [];
+          for (let i = 3; i < rows.length; i++) {
+            const row = rows[i];
+            const nama = String(row[1] || '').trim();
+            if (!nama) continue;
+
+            const grossProrate = parseNum(row[20]);   // Kolom U (index 20)
+            const totalPotongan = parseNum(row[30]);  // Kolom AE (index 30)
+            const koreksi = parseNum(row[33]);        // Kolom AH (index 33)
+
+            // RUMUS SESUAI INSTRUKSI: gross prorate - total potongan + koreksi
+            const takeHomePay = grossProrate - totalPotongan + koreksi;
+
+            // Total pendapatan disesuaikan agar konsisten dengan THP + Total Potongan
+            const jumlahPendapatan = grossProrate + koreksi;
+
+            parsedList.push({
+              no: row[0] || (parsedList.length + 1),
+              nama: nama,
+              nik: String(row[2] || '').trim(),
+              bagian: String(row[3] || '').trim(),
+              gajiPokok: parseNum(row[4]),        // E
+              tunjJabatan: parseNum(row[5]),      // F
+              tunjRisiko: parseNum(row[6]),       // G
+              tunjLevel: parseNum(row[7]),        // H
+              tunjKpi: parseNum(row[8]),          // I
+              hariKerja: parseNum(row[12]),       // M (Real Kehadiran)
+              efisiensi: parseNum(row[15]),       // P (Prorate Efisiensi)
+              tunjMakan: parseNum(row[14]),       // O (Tunj. Uang Makan)
+              lemburShift: parseNum(row[16]),     // Q (Lembur Shift)
+              lemburJumlah: parseNum(row[19]) || parseNum(row[17]), // T (Total Makan & Lembur) atau R
+              grossProrate: grossProrate,         // U
+              pph21: parseNum(row[21]),           // V
+              bpjs: parseNum(row[22]),            // W
+              telatMenit: parseNum(row[23]),      // X
+              telatJumlah: parseNum(row[24]),     // Y
+              potKpiPersen: parseNum(row[25]),    // Z
+              potKpiJumlah: parseNum(row[26]),    // AA
+              potHadirHari: parseNum(row[27]),    // AB
+              potHadirJumlah: parseNum(row[28]),  // AC
+              pinjaman: parseNum(row[29]),        // AD
+              totalPotongan: totalPotongan,       // AE
+              koreksi: koreksi,                   // AH
+              jumlahPendapatan: jumlahPendapatan,
+              takeHomePay: takeHomePay,
+              email: emailColIdx >= 0 ? String(row[emailColIdx] || '').trim() : '',
+              wa: waColIdx >= 0 ? String(row[waColIdx] || '').trim() : ''
+            });
+          }
+
+          if (parsedList.length === 0) {
+            alert('Data karyawan tidak ditemukan. Pastikan data mulai di baris ke-4 sesuai template.');
+            return;
+          }
+
+          employees = parsedList;
+          renderAll();
+          showToast(`Berhasil memuat ${employees.length} data slip gaji!`);
+        } catch (err) {
+          console.error(err);
+          alert('Gagal membaca file Excel: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Re-render saat periode / tanggal cetak berubah
+    ['periodeInput', 'tanggalCetakInput', 'hrdNameInput'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (employees.length > 0) renderSlipPages();
+      });
+    });
+
+    function buildSlipHtml(emp) {
+      const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+      const tglCetak = document.getElementById('tanggalCetakInput').value || '31 Oktober 2026';
+      const hrdLabel = document.getElementById('hrdNameInput').value || 'HRD';
+      const kpiPctDisplay = emp.potKpiPersen ? (emp.potKpiPersen <= 1 ? Math.round(emp.potKpiPersen * 100) + '%' : emp.potKpiPersen + '%') : '0%';
+
+      return `
+        <div class="slip-box" id="slip-emp-${emp.no}">
+          <table class="slip-table">
+            <colgroup>
+              <col style="width: 17%;">
+              <col style="width: 18%;">
+              <col style="width: 2%;">
+              <col style="width: 13%;">
+              <col style="width: 8%;">
+              <col style="width: 10%;">
+              <col style="width: 15%;">
+              <col style="width: 7%;">
+              <col style="width: 10%;">
+            </colgroup>
+            <tr>
+              <td colspan="7" class="hospital-title">RS. BHAKTI HUSADA CIKARANG</td>
+              <td colspan="2" class="slip-title">SLIP GAJI</td>
+            </tr>
+            <tr>
+              <td colspan="7" class="hospital-addr border-b-med">Jl. RE Martadinata (By Pass) Cikarang- Bekasi</td>
+              <td colspan="2" class="slip-period border-b-med">${periode.toUpperCase()}</td>
+            </tr>
+            <tr>
+              <td class="bold">Nama</td>
+              <td colspan="4" class="bold">: ${emp.nama}</td>
+              <td class="bold">Bagian</td>
+              <td colspan="3" class="bold">: ${emp.bagian}</td>
+            </tr>
+            <tr>
+              <td class="bold border-b-med">NIK</td>
+              <td colspan="8" class="bold border-b-med">: ${emp.nik}</td>
+            </tr>
+            <tr>
+              <td colspan="3" class="bold" style="padding-top: 4px;">PENDAPATAN</td>
+              <td class="bold center" style="padding-top: 4px;">HARI KRJ</td>
+              <td class="bold center" style="padding-top: 4px;">EFISIENSI</td>
+              <td colspan="4" class="bold border-l-dash" style="padding-top: 4px; padding-left: 8px;">POTONGAN</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">GAJI POKOK</td>
+              <td class="num border-b-dash">${formatNumber(emp.gajiPokok)}</td>
+              <td class="center border-l-dash border-r-dash border-b-dash">${emp.hariKerja || 0}</td>
+              <td class="num border-r-dash border-b-dash">${formatNumber(emp.efisiensi)}</td>
+              <td style="padding-left: 8px;">PPh21</td>
+              <td></td>
+              <td></td>
+              <td class="num border-b-dash">${formatNumber(emp.pph21)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">TUNJANGAN JABATAN</td>
+              <td class="num border-b-dash">${formatNumber(emp.tunjJabatan)}</td>
+              <td class="border-l-dash border-r-dash"></td>
+              <td class="border-r-dash"></td>
+              <td colspan="2" style="padding-left: 8px;">BPJS KES &amp; TK</td>
+              <td></td>
+              <td class="num border-b-dash">${formatNumber(emp.bpjs)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">TUNJANGAN RISIKO</td>
+              <td class="num border-b-dash">${formatNumber(emp.tunjRisiko)}</td>
+              <td class="border-l-dash border-r-dash"></td>
+              <td class="border-r-dash"></td>
+              <td colspan="2" style="padding-left: 8px;">PINJAMAN</td>
+              <td></td>
+              <td class="num border-b-dash">${formatNumber(emp.pinjaman)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">TUNJANGAN LEVEL</td>
+              <td class="num border-b-dash">${formatNumber(emp.tunjLevel)}</td>
+              <td class="border-l-dash border-r-dash"></td>
+              <td class="border-r-dash"></td>
+              <td style="padding-left: 8px;">KETERLAMBATAN</td>
+              <td class="center border-b-dash">${Math.round(emp.telatMenit)}</td>
+              <td class="bold center">menit</td>
+              <td class="num border-b-dash">${formatNumber(emp.telatJumlah)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">TUNJANGAN KPI</td>
+              <td class="num border-b-dash">${formatNumber(emp.tunjKpi)}</td>
+              <td class="border-l-dash border-r-dash border-b-dash"></td>
+              <td class="border-r-dash border-b-dash"></td>
+              <td style="padding-left: 8px;">KPI</td>
+              <td class="center border-b-dash">${kpiPctDisplay}</td>
+              <td></td>
+              <td class="num border-b-dash">${formatNumber(emp.potKpiJumlah)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-left: 12px;">TUNJANGAN MAKAN</td>
+              <td></td>
+              <td></td>
+              <td class="num border-b-dash">${formatNumber(emp.tunjMakan)}</td>
+              <td style="padding-left: 8px;">KEHADIRAN</td>
+              <td class="center border-b-dash">${emp.potHadirHari || 0}</td>
+              <td class="bold center">hari</td>
+              <td class="num border-b-dash">${formatNumber(emp.potHadirJumlah)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" class="border-b-med" style="padding-left: 12px;">LEMBUR ${emp.koreksi !== 0 ? '(+ Koreksi: ' + formatNumber(emp.koreksi) + ')' : ''}</td>
+              <td class="border-b-med"></td>
+              <td class="center border-b-med">${emp.lemburShift || 0}</td>
+              <td class="num border-b-med">${formatNumber(emp.lemburJumlah)}</td>
+              <td colspan="4" class="border-l-dash border-b-med"></td>
+            </tr>
+            <tr>
+              <td colspan="2" class="bold border-tb-med">JUMLAH PENDAPATAN</td>
+              <td colspan="3" class="bold num border-tb-med border-r-dash">${formatNumber(emp.jumlahPendapatan)}</td>
+              <td colspan="3" class="bold border-tb-med" style="padding-left: 8px;">JUMLAH POTONGAN</td>
+              <td class="bold num border-tb-med">${formatNumber(emp.totalPotongan)}</td>
+            </tr>
+            <tr>
+              <td colspan="9" style="height: 4px;"></td>
+            </tr>
+            <tr>
+              <td colspan="2" class="bold">TAKE HOME PAY</td>
+              <td colspan="3" class="box-thp">${formatRupiah(emp.takeHomePay)}</td>
+              <td colspan="2"></td>
+              <td colspan="2" class="center">${tglCetak}</td>
+            </tr>
+            <tr>
+              <td colspan="7" style="font-style: italic; font-size: 8.3pt;">${terbilang(emp.takeHomePay)}</td>
+              <td colspan="2" class="center bold">${hrdLabel}</td>
+            </tr>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderSlipPages() {
+      const container = document.getElementById('slipContainer');
+      container.innerHTML = '';
+
+      // Kelompokkan 3 slip per halaman A4 sesuai template Excel
+      for (let i = 0; i < employees.length; i += 3) {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'a4-page';
+        const chunk = employees.slice(i, i + 3);
+        pageDiv.innerHTML = chunk.map(emp => buildSlipHtml(emp)).join('');
+        container.appendChild(pageDiv);
+      }
+    }
+
+    function renderTable(list = employees) {
+      const tbody = document.getElementById('employeeTableBody');
+      document.getElementById('empCount').textContent = list.length;
+
+      tbody.innerHTML = list.map((emp, idx) => {
+        const originalIdx = employees.indexOf(emp);
+        const waBadge = emp.wa ? `<span class="badge badge-ok">WA: ${emp.wa}</span>` : `<span class="badge badge-warn">No WA -</span>`;
+        const mailBadge = emp.email ? `<span class="badge badge-ok">${emp.email}</span>` : `<span class="badge badge-warn">Email -</span>`;
+
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${emp.nik}</td>
+            <td><strong>${emp.nama}</strong></td>
+            <td>${emp.bagian}</td>
+            <td class="text-right">${formatNumber(emp.grossProrate)}</td>
+            <td class="text-right">${formatNumber(emp.totalPotongan)}</td>
+            <td class="text-right">${formatNumber(emp.koreksi)}</td>
+            <td class="text-right"><strong>${formatRupiah(emp.takeHomePay)}</strong></td>
+            <td>${waBadge} ${mailBadge}</td>
+            <td class="text-center">
+              <button class="btn btn-outline btn-sm" onclick="openSinglePreview(${originalIdx})" title="Lihat Slip">👁️ Slip</button>
+              <button class="btn btn-dark btn-sm" onclick="downloadSinglePdf(${originalIdx})" title="Download PDF">📄 PDF</button>
+              <button class="btn btn-wa btn-sm" onclick="sendWhatsApp(${originalIdx})" title="Kirim ke WhatsApp">💬 WA</button>
+              <button class="btn btn-mail btn-sm" onclick="sendEmail(${originalIdx})" title="Kirim ke Email">✉️ Email</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderAll() {
+      document.getElementById('employeeTableSection').style.display = 'block';
+      ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadExcel'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      renderTable(employees);
+      renderSlipPages();
+    }
+
+    function filterTable() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = employees.filter(e =>
+        e.nama.toLowerCase().includes(q) ||
+        e.nik.toLowerCase().includes(q) ||
+        e.bagian.toLowerCase().includes(q)
+      );
+      renderTable(filtered);
+    }
+
+    // PREVIEW SATUAN
+    function openSinglePreview(idx) {
+      const emp = employees[idx];
+      document.getElementById('singleModalBody').innerHTML = buildSlipHtml(emp);
+      document.getElementById('singleModalFooter').innerHTML = `
+        <button class="btn btn-dark" onclick="downloadSinglePdf(${idx})">📄 Download PDF</button>
+        <button class="btn btn-wa" onclick="sendWhatsApp(${idx})">💬 Kirim WhatsApp</button>
+        <button class="btn btn-mail" onclick="sendEmail(${idx})">✉️ Kirim Email</button>
+        <button class="btn btn-outline" onclick="closeModal()">Tutup</button>
+      `;
+      document.getElementById('singleModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('singleModal').classList.remove('active');
+    }
+
+    // GENERATE PDF SATUAN
+    async function generatePdfBlob(emp) {
+      const wrapper = document.createElement('div');
+      wrapper.style.padding = '10mm';
+      wrapper.style.background = 'white';
+      wrapper.style.width = '200mm';
+      wrapper.innerHTML = buildSlipHtml(emp);
+
+      const opt = {
+        margin: 5,
+        filename: `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      return await html2pdf().set(opt).from(wrapper).outputPdf('blob');
+    }
+
+    async function downloadSinglePdf(idx) {
+      const emp = employees[idx];
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      showToast(`Membuat PDF untuk ${emp.nama}...`);
+      const blob = await generatePdfBlob(emp);
+      saveAs(blob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.pdf`);
+      showToast(`PDF ${emp.nama} berhasil diunduh!`);
+    }
+
+    // DOWNLOAD PDF GABUNGAN (3 SLIP PER HALAMAN A4)
+    async function downloadMergedPdf() {
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      showToast('Sedang merender PDF seluruh karyawan, harap tunggu...');
+      const element = document.getElementById('slipContainer');
+      const opt = {
+        margin: 0,
+        filename: `Slip_Gaji_Semua_${periode}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], after: '.a4-page' }
+      };
+      await html2pdf().set(opt).from(element).save();
+      showToast('PDF Gabungan berhasil diunduh!');
+    }
+
+    // DOWNLOAD ZIP BERISI PDF SATUAN PER KARYAWAN
+    async function downloadZipIndividualPdf() {
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      const zip = new JSZip();
+      for (let i = 0; i < employees.length; i++) {
+        const emp = employees[i];
+        showToast(`Memproses PDF (${i + 1}/${employees.length}): ${emp.nama}...`, 10000);
+        const blob = await generatePdfBlob(emp);
+        const safeName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        zip.file(safeName, blob);
+      }
+      showToast('Mengompres ke file ZIP...');
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `Slip_Gaji_Satuan_${periode}.zip`);
+      showToast('File ZIP PDF satuan berhasil diunduh!');
+    }
+
+    // FORMAT NOMOR WA INDONESIA (08xx -> 628xx)
+    function formatWaNumber(raw) {
+      let digits = String(raw || '').replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+      if (digits.startsWith('8')) digits = '62' + digits;
+      return digits;
+    }
+
+    function buildMessageText(emp) {
+      const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+      return `Halo *${emp.nama}* (NIK: ${emp.nik}),\n\n` +
+        `Berikut informasi Slip Gaji Anda periode *${periode}* dari *RS. Bhakti Husada Cikarang*:\n` +
+        `• Bagian: ${emp.bagian}\n` +
+        `• Gross Prorate: ${formatRupiah(emp.grossProrate)}\n` +
+        `• Total Potongan: ${formatRupiah(emp.totalPotongan)}\n` +
+        `• Koreksi: ${formatRupiah(emp.koreksi)}\n` +
+        `• *Take Home Pay: ${formatRupiah(emp.takeHomePay)}*\n\n` +
+        `File PDF slip gaji terlampir. Terima kasih.\n_HRD RS. Bhakti Husada Cikarang_`;
+    }
+
+    // KIRIM KE WHATSAPP + AUTO DOWNLOAD PDF UNTUK DILAMPIRKAN
+    async function sendWhatsApp(idx) {
+      const emp = employees[idx];
+      const phone = formatWaNumber(emp.wa);
+      if (!phone) {
+        alert(`Nomor WhatsApp untuk ${emp.nama} belum diisi di file Excel upload.`);
+        return;
+      }
+
+      // Download otomatis PDF-nya agar tinggal drag & drop di chat WA
+      await downloadSinglePdf(idx);
+      const text = encodeURIComponent(buildMessageText(emp));
+      window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    }
+
+    // KIRIM KE EMAIL
+    async function sendEmail(idx) {
+      const emp = employees[idx];
+      if (!emp.email) {
+        alert(`Alamat Email untuk ${emp.nama} belum diisi di file Excel upload.`);
+        return;
+      }
+
+      const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+      await downloadSinglePdf(idx);
+      const subject = encodeURIComponent(`Slip Gaji Periode ${periode} - ${emp.nama}`);
+      const body = encodeURIComponent(buildMessageText(emp).replace(/\*/g, '').replace(/_/g, ''));
+      window.location.href = `mailto:${emp.email}?subject=${subject}&body=${body}`;
+    }
+
+    // EXPORT KE EXCEL (.XLSX) FORMAT SLIP GAJI
+    function exportFormattedExcel() {
+      const wb = XLSX.utils.book_new();
+      const wsData = [];
+      const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+      const tglCetak = document.getElementById('tanggalCetakInput').value || '31 Oktober 2026';
+      const hrdLabel = document.getElementById('hrdNameInput').value || 'HRD';
+
+      employees.forEach((emp) => {
+        wsData.push(['', 'RS. BHAKTI HUSADA CIKARANG', '', '', '', '', '', '', '', '', '', '', 'SLIP GAJI', '']);
+        wsData.push(['', 'Jl. RE Martadinata (By Pass) Cikarang- Bekasi', '', '', '', '', '', '', '', '', '', '', periode, '']);
+        wsData.push(['', 'Nama', ':', emp.nama, '', '', '', '', 'Bagian', ':', emp.bagian, '', '', '']);
+        wsData.push(['', 'NIK', ':', emp.nik, '', '', '', '', '', '', '', '', '', '']);
+        wsData.push(['PENDAPATAN', '', '', '', '', 'HARI KRJ', 'EFISIENSI', 'POTONGAN', '', '', '', '', '', '']);
+        wsData.push(['', 'GAJI POKOK', '', '', emp.gajiPokok, emp.hariKerja, emp.efisiensi, '', 'PPh21', '', '', '', '', emp.pph21]);
+        wsData.push(['', 'TUNJANGAN JABATAN', '', '', emp.tunjJabatan, '', '', '', 'BPJS KES & TK', '', '', '', '', emp.bpjs]);
+        wsData.push(['', 'TUNJANGAN RISIKO', '', '', emp.tunjRisiko, '', '', '', 'PINJAMAN', '', '', '', '', emp.pinjaman]);
+        wsData.push(['', 'TUNJANGAN LEVEL', '', '', emp.tunjLevel, '', '', '', 'KETERLAMBATAN', '', '', Math.round(emp.telatMenit), 'menit', emp.telatJumlah]);
+        wsData.push(['', 'TUNJANGAN KPI', '', '', emp.tunjKpi, '', '', '', 'KPI', '', '', emp.potKpiPersen, '', emp.potKpiJumlah]);
+        wsData.push(['', 'TUNJANGAN MAKAN', '', '', '', '', emp.tunjMakan, '', 'KEHADIRAN', '', '', emp.potHadirHari, 'hari', emp.potHadirJumlah]);
+        wsData.push(['', 'LEMBUR', '', '', '', emp.lemburShift, emp.lemburJumlah, '', '', '', '', '', '', '']);
+        wsData.push(['JUMLAH PENDAPATAN', '', '', '', emp.jumlahPendapatan, '', '', 'JUMLAH POTONGAN', '', '', '', '', '', emp.totalPotongan]);
+        wsData.push([]);
+        wsData.push(['TAKE HOME PAY', '', '', '', emp.takeHomePay, '', '', '', '', '', '', '', tglCetak, '']);
+        wsData.push([terbilang(emp.takeHomePay), '', '', '', '', '', '', '', '', '', '', '', hrdLabel, '']);
+        wsData.push([]);
+        wsData.push([]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [
+        { wch: 24 }, { wch: 25 }, { wch: 3 }, { wch: 16 }, { wch: 14 },
+        { wch: 9 }, { wch: 13 }, { wch: 22 }, { wch: 18 }, { wch: 3 },
+        { wch: 10 }, { wch: 7 }, { wch: 10 }, { wch: 14 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'SLIP GAJI');
+      XLSX.writeFile(wb, `Slip_Gaji_${periode.replace(/\s+/g, '_')}.xlsx`);
+      showToast('File Excel Slip Gaji berhasil diunduh!');
+    }
+  </script>
+</body>
+</html>
