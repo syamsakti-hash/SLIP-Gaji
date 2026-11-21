@@ -7,6 +7,7 @@
   
   <!-- Libraries via CDN -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -217,7 +218,7 @@
       border-radius: 6px;
     }
 
-    /* SLIP GAJI DESIGN (PROPORSI KOLOM & GARIS PUTUS-PUTUS PRESISI) */
+    /* SLIP GAJI DESIGN */
     .preview-wrapper {
       max-width: 210mm;
       margin: 0 auto 40px auto;
@@ -237,6 +238,7 @@
 
     .slip-box {
       width: 100%;
+      background: #ffffff;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 8.8pt;
       color: #000;
@@ -357,9 +359,10 @@
       padding: 12px 18px;
       border-radius: 8px;
       font-size: 0.9rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
       z-index: 1000;
       display: none;
+      max-width: 420px;
     }
 
     /* PRINT STYLES */
@@ -402,11 +405,11 @@
     <div class="header-card">
       <div>
         <h1>Sistem Otomatisasi Slip Gaji</h1>
-        <p>RS. Bhakti Husada Cikarang &bull; Upload Excel, Cetak PDF (3 Slip/A4), Export Excel &amp; Kirim WA/Email</p>
+        <p>RS. Bhakti Husada Cikarang &bull; Print A4 (3 Slip/Hal), PDF, Excel, &amp; Kirim Gambar PNG ke WhatsApp</p>
       </div>
       <div style="text-align: right; font-size: 0.82rem; opacity: 0.9;">
         <div>Formula THP: <strong>Gross Prorate - Total Potongan + Koreksi</strong></div>
-        <div>Support kolom tambahan: <strong>Email</strong> &amp; <strong>No WA</strong></div>
+        <div>Tips WA: Klik <strong>💬 WA</strong> &rarr; Otomatis Copy Gambar &rarr; Tekan <strong>Ctrl+V</strong> di Chat WA</div>
       </div>
     </div>
 
@@ -438,7 +441,10 @@
           📄 Download PDF Gabungan (Semua)
         </button>
         <button id="btnDownloadZipPdf" class="btn btn-outline" disabled onclick="downloadZipIndividualPdf()">
-          🗜️ Download ZIP PDF Satuan (Per Orang)
+          🗜️ Download ZIP PDF Satuan
+        </button>
+        <button id="btnDownloadZipImg" class="btn btn-outline" disabled onclick="downloadZipIndividualPng()">
+          🖼️ Download ZIP Gambar PNG (WA)
         </button>
         <button id="btnDownloadExcel" class="btn btn-success" disabled onclick="exportFormattedExcel()">
           📊 Download Excel Slip Gaji (.xlsx)
@@ -451,7 +457,11 @@
       <div class="table-header">
         <div>
           <strong style="font-size: 1.05rem;">Daftar Karyawan (<span id="empCount">0</span> Orang)</strong>
-          <div style="font-size: 0.8rem; color: #64748b;">Klik tombol aksi di sebelah kanan untuk Preview, Download PDF Satuan, atau Kirim WA/Email.</div>
+          <div style="font-size: 0.8rem; color: #64748b;">
+            <strong>💬 WA:</strong> Copy gambar PNG ke clipboard &amp; buka WA (tinggal Ctrl+V) &bull; 
+            <strong>🖼️ PNG:</strong> Unduh gambar satuan &bull; 
+            <strong>📄 PDF / ✉️ Email:</strong> Unduh/kirim PDF
+          </div>
         </div>
         <input type="text" id="searchInput" class="search-box" placeholder="Cari Nama / NIK / Bagian..." oninput="filterTable()" />
       </div>
@@ -492,7 +502,7 @@
   <script>
     let employees = [];
 
-    function showToast(msg, duration = 3500) {
+    function showToast(msg, duration = 4500) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.style.display = 'block';
@@ -574,7 +584,6 @@
             });
           }
 
-          // Data karyawan mulai dari baris ke-4 (index 3) karena baris 1-3 adalah header
           const parsedList = [];
           for (let i = 3; i < rows.length; i++) {
             const row = rows[i];
@@ -585,7 +594,7 @@
             const totalPotongan = parseNum(row[30]);  // Kolom AE (index 30)
             const koreksi = parseNum(row[33]);        // Kolom AH (index 33)
 
-            // RUMUS SESUAI INSTRUKSI: gross prorate - total potongan + koreksi
+            // RUMUS: gross prorate - total potongan + koreksi
             const takeHomePay = grossProrate - totalPotongan + koreksi;
             const jumlahPendapatan = grossProrate + koreksi;
 
@@ -603,7 +612,7 @@
               efisiensi: parseNum(row[15]),       // P (Prorate Efisiensi)
               tunjMakan: parseNum(row[14]),       // O (Tunj. Uang Makan)
               lemburShift: parseNum(row[16]),     // Q (Lembur Shift)
-              lemburJumlah: parseNum(row[19]) || parseNum(row[17]), // T (Total Makan & Lembur) atau R
+              lemburJumlah: parseNum(row[19]) || parseNum(row[17]), // T atau R
               grossProrate: grossProrate,         // U
               pph21: parseNum(row[21]),           // V
               bpjs: parseNum(row[22]),            // W
@@ -645,26 +654,18 @@
       });
     });
 
-    function buildSlipHtml(emp) {
+    function buildSlipHtml(emp, isStandaloneImage = false) {
       const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
       const tglCetak = document.getElementById('tanggalCetakInput').value || '31 Oktober 2026';
       const hrdLabel = document.getElementById('hrdNameInput').value || 'HRD';
       const kpiPctDisplay = emp.potKpiPersen ? (emp.potKpiPersen <= 1 ? Math.round(emp.potKpiPersen * 100) + '%' : emp.potKpiPersen + '%') : '0%';
 
-      /* 
-         Pembagian 9 kolom presisi (total 100%):
-         Col 1 (8%)  : Label kiri / indentasi
-         Col 2 (15%) : Label komponen pendapatan (total Col 1+2 = 23%)
-         Col 3 (13%) : Nominal pendapatan (Gaji Pokok, dll) -> cukup lebar agar tidak menempel ke HARI KRJ
-         Col 4 (9%)  : HARI KRJ
-         Col 5 (13%) : EFISIENSI -> cukup lebar + border kanan putus-putus
-         Col 6 (15%) : Label komponen potongan
-         Col 7 (7%)  : Angka Menit / % / Hari
-         Col 8 (7%)  : Satuan (menit / hari)
-         Col 9 (13%) : Nominal potongan
-      */
+      const extraBoxStyle = isStandaloneImage
+        ? 'border: 1.5px solid #334155; padding: 14px 16px; border-radius: 6px; margin-bottom: 0;'
+        : '';
+
       return `
-        <div class="slip-box" id="slip-emp-${emp.no}">
+        <div class="slip-box" style="${extraBoxStyle}">
           <table class="slip-table">
             <colgroup>
               <col style="width: 8%;">
@@ -794,12 +795,11 @@
       const container = document.getElementById('slipContainer');
       container.innerHTML = '';
 
-      // Kelompokkan 3 slip per halaman A4 sesuai template Excel
       for (let i = 0; i < employees.length; i += 3) {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'a4-page';
         const chunk = employees.slice(i, i + 3);
-        pageDiv.innerHTML = chunk.map(emp => buildSlipHtml(emp)).join('');
+        pageDiv.innerHTML = chunk.map(emp => buildSlipHtml(emp, false)).join('');
         container.appendChild(pageDiv);
       }
     }
@@ -826,8 +826,9 @@
             <td>${waBadge} ${mailBadge}</td>
             <td class="text-center">
               <button class="btn btn-outline btn-sm" onclick="openSinglePreview(${originalIdx})" title="Lihat Slip">👁️ Slip</button>
+              <button class="btn btn-wa btn-sm" onclick="sendWhatsAppImage(${originalIdx})" title="Copy Gambar PNG & Buka WhatsApp">💬 WA</button>
+              <button class="btn btn-primary btn-sm" onclick="downloadSinglePng(${originalIdx})" title="Download Gambar PNG">🖼️ PNG</button>
               <button class="btn btn-dark btn-sm" onclick="downloadSinglePdf(${originalIdx})" title="Download PDF">📄 PDF</button>
-              <button class="btn btn-wa btn-sm" onclick="sendWhatsApp(${originalIdx})" title="Kirim ke WhatsApp">💬 WA</button>
               <button class="btn btn-mail btn-sm" onclick="sendEmail(${originalIdx})" title="Kirim ke Email">✉️ Email</button>
             </td>
           </tr>
@@ -837,7 +838,7 @@
 
     function renderAll() {
       document.getElementById('employeeTableSection').style.display = 'block';
-      ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadExcel'].forEach(id => {
+      ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadZipImg', 'btnDownloadExcel'].forEach(id => {
         document.getElementById(id).disabled = false;
       });
       renderTable(employees);
@@ -857,10 +858,11 @@
     // PREVIEW SATUAN
     function openSinglePreview(idx) {
       const emp = employees[idx];
-      document.getElementById('singleModalBody').innerHTML = buildSlipHtml(emp);
+      document.getElementById('singleModalBody').innerHTML = buildSlipHtml(emp, true);
       document.getElementById('singleModalFooter').innerHTML = `
+        <button class="btn btn-wa" onclick="sendWhatsAppImage(${idx})">💬 Copy Gambar &amp; Kirim WA</button>
+        <button class="btn btn-primary" onclick="downloadSinglePng(${idx})">🖼️ Download Gambar PNG</button>
         <button class="btn btn-dark" onclick="downloadSinglePdf(${idx})">📄 Download PDF</button>
-        <button class="btn btn-wa" onclick="sendWhatsApp(${idx})">💬 Kirim WhatsApp</button>
         <button class="btn btn-mail" onclick="sendEmail(${idx})">✉️ Kirim Email</button>
         <button class="btn btn-outline" onclick="closeModal()">Tutup</button>
       `;
@@ -871,13 +873,63 @@
       document.getElementById('singleModal').classList.remove('active');
     }
 
+    // GENERATE GAMBAR PNG (BLOB) UNTUK WHATSAPP
+    async function generatePngBlob(emp) {
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'fixed';
+      wrapper.style.left = '-9999px';
+      wrapper.style.top = '0';
+      wrapper.style.padding = '16px';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.width = '780px';
+      wrapper.innerHTML = buildSlipHtml(emp, true);
+      document.body.appendChild(wrapper);
+
+      try {
+        const canvas = await html2canvas(wrapper, {
+          scale: 2.5, // Resolusi tajam saat dibuka di HP
+          backgroundColor: '#ffffff',
+          useCORS: true
+        });
+        return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      } finally {
+        document.body.removeChild(wrapper);
+      }
+    }
+
+    async function downloadSinglePng(idx) {
+      const emp = employees[idx];
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      showToast(`Membuat gambar PNG untuk ${emp.nama}...`);
+      const blob = await generatePngBlob(emp);
+      saveAs(blob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.png`);
+      showToast(`Gambar PNG ${emp.nama} berhasil diunduh!`);
+    }
+
+    // DOWNLOAD ZIP BERISI GAMBAR PNG SATUAN PER KARYAWAN
+    async function downloadZipIndividualPng() {
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      const zip = new JSZip();
+      for (let i = 0; i < employees.length; i++) {
+        const emp = employees[i];
+        showToast(`Memproses PNG (${i + 1}/${employees.length}): ${emp.nama}...`, 10000);
+        const blob = await generatePngBlob(emp);
+        const safeName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+        zip.file(safeName, blob);
+      }
+      showToast('Mengompres gambar ke file ZIP...');
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `Slip_Gaji_Gambar_PNG_${periode}.zip`);
+      showToast('File ZIP Gambar PNG berhasil diunduh!');
+    }
+
     // GENERATE PDF SATUAN
     async function generatePdfBlob(emp) {
       const wrapper = document.createElement('div');
       wrapper.style.padding = '10mm';
       wrapper.style.background = 'white';
       wrapper.style.width = '200mm';
-      wrapper.innerHTML = buildSlipHtml(emp);
+      wrapper.innerHTML = buildSlipHtml(emp, false);
 
       const opt = {
         margin: 5,
@@ -927,9 +979,9 @@
         const safeName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         zip.file(safeName, blob);
       }
-      showToast('Mengompres ke file ZIP...');
+      showToast('Mengompres PDF ke file ZIP...');
       const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, `Slip_Gaji_Satuan_${periode}.zip`);
+      saveAs(content, `Slip_Gaji_PDF_Satuan_${periode}.zip`);
       showToast('File ZIP PDF satuan berhasil diunduh!');
     }
 
@@ -945,17 +997,13 @@
     function buildMessageText(emp) {
       const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
       return `Halo *${emp.nama}* (NIK: ${emp.nik}),\n\n` +
-        `Berikut informasi Slip Gaji Anda periode *${periode}* dari *RS. Bhakti Husada Cikarang*:\n` +
-        `• Bagian: ${emp.bagian}\n` +
-        `• Gross Prorate: ${formatRupiah(emp.grossProrate)}\n` +
-        `• Total Potongan: ${formatRupiah(emp.totalPotongan)}\n` +
-        `• Koreksi: ${formatRupiah(emp.koreksi)}\n` +
-        `• *Take Home Pay: ${formatRupiah(emp.takeHomePay)}*\n\n` +
-        `File PDF slip gaji terlampir. Terima kasih.\n_HRD RS. Bhakti Husada Cikarang_`;
+        `Berikut Slip Gaji Anda periode *${periode}* dari *RS. Bhakti Husada Cikarang*.\n` +
+        `Take Home Pay: *${formatRupiah(emp.takeHomePay)}*\n\n` +
+        `Terima kasih.\n_HRD RS. Bhakti Husada Cikarang_`;
     }
 
-    // KIRIM KE WHATSAPP + AUTO DOWNLOAD PDF UNTUK DILAMPIRKAN
-    async function sendWhatsApp(idx) {
+    // KIRIM GAMBAR PNG KE WHATSAPP (AUTO-COPY KE CLIPBOARD + BUKA WA)
+    async function sendWhatsAppImage(idx) {
       const emp = employees[idx];
       const phone = formatWaNumber(emp.wa);
       if (!phone) {
@@ -963,12 +1011,34 @@
         return;
       }
 
-      await downloadSinglePdf(idx);
+      showToast(`Menyiapkan gambar slip gaji ${emp.nama}...`);
+      const pngBlob = await generatePngBlob(emp);
+      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+
+      let copiedToClipboard = false;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': pngBlob })
+          ]);
+          copiedToClipboard = true;
+        }
+      } catch (err) {
+        console.warn('Clipboard image write blocked, fallback to download:', err);
+      }
+
+      if (copiedToClipboard) {
+        showToast(`✅ Gambar slip ${emp.nama} tersalin! Tinggal tekan Ctrl+V (atau Cmd+V) di chat WhatsApp.`, 6500);
+      } else {
+        saveAs(pngBlob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.png`);
+        showToast(`Gambar slip ${emp.nama} diunduh. Silakan lampirkan di chat WhatsApp.`, 6000);
+      }
+
       const text = encodeURIComponent(buildMessageText(emp));
       window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     }
 
-    // KIRIM KE EMAIL
+    // KIRIM PDF KE EMAIL
     async function sendEmail(idx) {
       const emp = employees[idx];
       if (!emp.email) {
