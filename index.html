@@ -217,7 +217,7 @@
       border-radius: 6px;
     }
 
-    /* SLIP GAJI DESIGN (EXACT MATCH TO TEMPLATE SLIP GAJI.xlsx) */
+    /* SLIP GAJI DESIGN (PROPORSI KOLOM & GARIS PUTUS-PUTUS PRESISI) */
     .preview-wrapper {
       max-width: 210mm;
       margin: 0 auto 40px auto;
@@ -238,17 +238,13 @@
     .slip-box {
       width: 100%;
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 9.5pt;
+      font-size: 8.8pt;
       color: #000;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
-      border-bottom: 1.5px dashed #64748b;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      border-bottom: 1.5px dashed #334155;
       page-break-inside: avoid;
       break-inside: avoid;
-    }
-
-    .slip-box:last-child {
-      border-bottom: 1.5px dashed #64748b;
     }
 
     .slip-table {
@@ -258,9 +254,10 @@
     }
 
     .slip-table td {
-      padding: 1.5px 4px;
+      padding: 2px 6px;
       vertical-align: middle;
-      font-size: 8.8pt;
+      font-size: 8.6pt;
+      white-space: nowrap;
     }
 
     .hospital-title {
@@ -294,9 +291,10 @@
       border-top: 1.5px solid #000;
       border-bottom: 1.5px solid #000;
     }
-    .border-l-dash { border-left: 1px dashed #475569; }
-    .border-r-dash { border-right: 1px dashed #475569; }
-    .border-b-dash { border-bottom: 1px dashed #94a3b8; }
+    .border-l-dash { border-left: 1px dashed #334155; }
+    .border-r-dash { border-right: 1px dashed #334155; }
+    .border-b-dash { border-bottom: 1px dashed #64748b; }
+
     .box-thp {
       border: 1.5px solid #000;
       background-color: #f1f5f9;
@@ -307,7 +305,12 @@
     }
 
     .bold { font-weight: bold; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      padding-right: 8px !important;
+      padding-left: 6px !important;
+    }
     .center { text-align: center; }
 
     /* MODAL PREVIEW */
@@ -399,7 +402,7 @@
     <div class="header-card">
       <div>
         <h1>Sistem Otomatisasi Slip Gaji</h1>
-        <p>RS. Bhakti Husada Cikarang &bull; Upload Excel, Cetak PDF (3 Slip/A4), Export Excel & Kirim WA/Email</p>
+        <p>RS. Bhakti Husada Cikarang &bull; Upload Excel, Cetak PDF (3 Slip/A4), Export Excel &amp; Kirim WA/Email</p>
       </div>
       <div style="text-align: right; font-size: 0.82rem; opacity: 0.9;">
         <div>Formula THP: <strong>Gross Prorate - Total Potongan + Koreksi</strong></div>
@@ -584,8 +587,6 @@
 
             // RUMUS SESUAI INSTRUKSI: gross prorate - total potongan + koreksi
             const takeHomePay = grossProrate - totalPotongan + koreksi;
-
-            // Total pendapatan disesuaikan agar konsisten dengan THP + Total Potongan
             const jumlahPendapatan = grossProrate + koreksi;
 
             parsedList.push({
@@ -638,7 +639,6 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // Re-render saat periode / tanggal cetak berubah
     ['periodeInput', 'tanggalCetakInput', 'hrdNameInput'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         if (employees.length > 0) renderSlipPages();
@@ -651,19 +651,31 @@
       const hrdLabel = document.getElementById('hrdNameInput').value || 'HRD';
       const kpiPctDisplay = emp.potKpiPersen ? (emp.potKpiPersen <= 1 ? Math.round(emp.potKpiPersen * 100) + '%' : emp.potKpiPersen + '%') : '0%';
 
+      /* 
+         Pembagian 9 kolom presisi (total 100%):
+         Col 1 (8%)  : Label kiri / indentasi
+         Col 2 (15%) : Label komponen pendapatan (total Col 1+2 = 23%)
+         Col 3 (13%) : Nominal pendapatan (Gaji Pokok, dll) -> cukup lebar agar tidak menempel ke HARI KRJ
+         Col 4 (9%)  : HARI KRJ
+         Col 5 (13%) : EFISIENSI -> cukup lebar + border kanan putus-putus
+         Col 6 (15%) : Label komponen potongan
+         Col 7 (7%)  : Angka Menit / % / Hari
+         Col 8 (7%)  : Satuan (menit / hari)
+         Col 9 (13%) : Nominal potongan
+      */
       return `
         <div class="slip-box" id="slip-emp-${emp.no}">
           <table class="slip-table">
             <colgroup>
-              <col style="width: 17%;">
-              <col style="width: 18%;">
-              <col style="width: 2%;">
-              <col style="width: 13%;">
               <col style="width: 8%;">
-              <col style="width: 10%;">
+              <col style="width: 15%;">
+              <col style="width: 13%;">
+              <col style="width: 9%;">
+              <col style="width: 13%;">
               <col style="width: 15%;">
               <col style="width: 7%;">
-              <col style="width: 10%;">
+              <col style="width: 7%;">
+              <col style="width: 13%;">
             </colgroup>
             <tr>
               <td colspan="7" class="hospital-title">RS. BHAKTI HUSADA CIKARANG</td>
@@ -685,16 +697,16 @@
             </tr>
             <tr>
               <td colspan="3" class="bold" style="padding-top: 4px;">PENDAPATAN</td>
-              <td class="bold center" style="padding-top: 4px;">HARI KRJ</td>
-              <td class="bold center" style="padding-top: 4px;">EFISIENSI</td>
-              <td colspan="4" class="bold border-l-dash" style="padding-top: 4px; padding-left: 8px;">POTONGAN</td>
+              <td class="bold center border-l-dash border-r-dash" style="padding-top: 4px;">HARI KRJ</td>
+              <td class="bold center border-r-dash" style="padding-top: 4px;">EFISIENSI</td>
+              <td colspan="4" class="bold" style="padding-top: 4px; padding-left: 10px;">POTONGAN</td>
             </tr>
             <tr>
               <td colspan="2" style="padding-left: 12px;">GAJI POKOK</td>
               <td class="num border-b-dash">${formatNumber(emp.gajiPokok)}</td>
               <td class="center border-l-dash border-r-dash border-b-dash">${emp.hariKerja || 0}</td>
               <td class="num border-r-dash border-b-dash">${formatNumber(emp.efisiensi)}</td>
-              <td style="padding-left: 8px;">PPh21</td>
+              <td style="padding-left: 10px;">PPh21</td>
               <td></td>
               <td></td>
               <td class="num border-b-dash">${formatNumber(emp.pph21)}</td>
@@ -704,7 +716,7 @@
               <td class="num border-b-dash">${formatNumber(emp.tunjJabatan)}</td>
               <td class="border-l-dash border-r-dash"></td>
               <td class="border-r-dash"></td>
-              <td colspan="2" style="padding-left: 8px;">BPJS KES &amp; TK</td>
+              <td colspan="2" style="padding-left: 10px;">BPJS KES &amp; TK</td>
               <td></td>
               <td class="num border-b-dash">${formatNumber(emp.bpjs)}</td>
             </tr>
@@ -713,7 +725,7 @@
               <td class="num border-b-dash">${formatNumber(emp.tunjRisiko)}</td>
               <td class="border-l-dash border-r-dash"></td>
               <td class="border-r-dash"></td>
-              <td colspan="2" style="padding-left: 8px;">PINJAMAN</td>
+              <td colspan="2" style="padding-left: 10px;">PINJAMAN</td>
               <td></td>
               <td class="num border-b-dash">${formatNumber(emp.pinjaman)}</td>
             </tr>
@@ -722,7 +734,7 @@
               <td class="num border-b-dash">${formatNumber(emp.tunjLevel)}</td>
               <td class="border-l-dash border-r-dash"></td>
               <td class="border-r-dash"></td>
-              <td style="padding-left: 8px;">KETERLAMBATAN</td>
+              <td style="padding-left: 10px;">KETERLAMBATAN</td>
               <td class="center border-b-dash">${Math.round(emp.telatMenit)}</td>
               <td class="bold center">menit</td>
               <td class="num border-b-dash">${formatNumber(emp.telatJumlah)}</td>
@@ -732,7 +744,7 @@
               <td class="num border-b-dash">${formatNumber(emp.tunjKpi)}</td>
               <td class="border-l-dash border-r-dash border-b-dash"></td>
               <td class="border-r-dash border-b-dash"></td>
-              <td style="padding-left: 8px;">KPI</td>
+              <td style="padding-left: 10px;">KPI</td>
               <td class="center border-b-dash">${kpiPctDisplay}</td>
               <td></td>
               <td class="num border-b-dash">${formatNumber(emp.potKpiJumlah)}</td>
@@ -740,9 +752,9 @@
             <tr>
               <td colspan="2" style="padding-left: 12px;">TUNJANGAN MAKAN</td>
               <td></td>
-              <td></td>
-              <td class="num border-b-dash">${formatNumber(emp.tunjMakan)}</td>
-              <td style="padding-left: 8px;">KEHADIRAN</td>
+              <td class="border-l-dash border-r-dash"></td>
+              <td class="num border-r-dash border-b-dash">${formatNumber(emp.tunjMakan)}</td>
+              <td style="padding-left: 10px;">KEHADIRAN</td>
               <td class="center border-b-dash">${emp.potHadirHari || 0}</td>
               <td class="bold center">hari</td>
               <td class="num border-b-dash">${formatNumber(emp.potHadirJumlah)}</td>
@@ -750,14 +762,14 @@
             <tr>
               <td colspan="2" class="border-b-med" style="padding-left: 12px;">LEMBUR ${emp.koreksi !== 0 ? '(+ Koreksi: ' + formatNumber(emp.koreksi) + ')' : ''}</td>
               <td class="border-b-med"></td>
-              <td class="center border-b-med">${emp.lemburShift || 0}</td>
-              <td class="num border-b-med">${formatNumber(emp.lemburJumlah)}</td>
-              <td colspan="4" class="border-l-dash border-b-med"></td>
+              <td class="center border-l-dash border-r-dash border-b-med">${emp.lemburShift || 0}</td>
+              <td class="num border-r-dash border-b-med">${formatNumber(emp.lemburJumlah)}</td>
+              <td colspan="4" class="border-b-med"></td>
             </tr>
             <tr>
               <td colspan="2" class="bold border-tb-med">JUMLAH PENDAPATAN</td>
               <td colspan="3" class="bold num border-tb-med border-r-dash">${formatNumber(emp.jumlahPendapatan)}</td>
-              <td colspan="3" class="bold border-tb-med" style="padding-left: 8px;">JUMLAH POTONGAN</td>
+              <td colspan="3" class="bold border-tb-med" style="padding-left: 10px;">JUMLAH POTONGAN</td>
               <td class="bold num border-tb-med">${formatNumber(emp.totalPotongan)}</td>
             </tr>
             <tr>
@@ -951,7 +963,6 @@
         return;
       }
 
-      // Download otomatis PDF-nya agar tinggal drag & drop di chat WA
       await downloadSinglePdf(idx);
       const text = encodeURIComponent(buildMessageText(emp));
       window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
