@@ -449,6 +449,9 @@
         <button id="btnDownloadExcel" class="btn btn-success" disabled onclick="exportFormattedExcel()">
           📊 Download Excel Slip Gaji (.xlsx)
         </button>
+        <button id="btnDownloadCsvMailMerge" class="btn btn-mail" disabled onclick="exportThunderbirdCsv()">
+  📨 Download CSV untuk Thunderbird
+</button>
       </div>
     </div>
 
@@ -639,6 +642,9 @@
 
           employees = parsedList;
           renderAll();
+          ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadZipImg', 'btnDownloadExcel', 'btnDownloadCsvMailMerge'].forEach(id => {
+  document.getElementById(id).disabled = false;
+});
           showToast(`Berhasil memuat ${employees.length} data slip gaji!`);
         } catch (err) {
           console.error(err);
@@ -1092,6 +1098,34 @@
       XLSX.writeFile(wb, `Slip_Gaji_${periode.replace(/\s+/g, '_')}.xlsx`);
       showToast('File Excel Slip Gaji berhasil diunduh!');
     }
+    function exportThunderbirdCsv() {
+  const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+  const rows = [['Email', 'Nama', 'NIK', 'Bagian', 'THP', 'Periode', 'NamaFilePDF']];
+
+  employees.forEach((emp, i) => {
+    if (!emp.email) return; // Hanya karyawan yang memiliki alamat email
+    const safeFileName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    rows.push([
+      emp.email,
+      emp.nama,
+      emp.nik,
+      emp.bagian,
+      formatRupiah(emp.takeHomePay),
+      periode,
+      safeFileName
+    ]);
+  });
+
+  if (rows.length === 1) {
+    alert('Tidak ada data email karyawan yang terisi di file Excel upload.');
+    return;
+  }
+
+  const csvContent = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, `Daftar_Kirim_Thunderbird_${periode.replace(/\s+/g, '_')}.csv`);
+  showToast(`CSV Thunderbird (${rows.length - 1} penerima) berhasil diunduh!`);
+}
   </script>
 </body>
 </html>
