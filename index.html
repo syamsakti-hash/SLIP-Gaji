@@ -8,6 +8,7 @@
   <!-- Libraries via CDN -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -958,61 +959,76 @@
 
     // DOWNLOAD PDF GABUNGAN (3 SLIP PER HALAMAN A4 - ANTI BLANK)
     async function downloadMergedPdf() {
-      const pages = document.querySelectorAll('#slipContainer .a4-page');
-      if (!pages.length) {
-        alert('Belum ada data slip gaji untuk diunduh.');
-        return;
-      }
-
-      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
-      const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-      const pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-      for (let i = 0; i < pages.length; i++) {
-        showToast(`Merender halaman PDF (${i + 1}/${pages.length})...`, 15000);
-        await new Promise(r => setTimeout(r, 20));
-
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'fixed';
-        wrapper.style.left = '-9999px';
-        wrapper.style.top = '0';
-        wrapper.style.width = '210mm';
-        wrapper.style.background = '#ffffff';
-        wrapper.style.padding = '6mm 8mm';
-
-        const clone = pages[i].cloneNode(true);
-        clone.style.boxShadow = 'none';
-        clone.style.margin = '0';
-        clone.style.padding = '0';
-        clone.style.width = '100%';
-        clone.style.minHeight = 'auto';
-
-        wrapper.appendChild(clone);
-        document.body.appendChild(wrapper);
-
-        try {
-          const canvas = await html2canvas(wrapper, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.98);
-          const pageWidth = 210;
-          const imgHeight = (canvas.height * pageWidth) / canvas.width;
-          const ratio = imgHeight > 297 ? (297 / imgHeight) : 1;
-
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth * ratio, imgHeight * ratio);
-        } finally {
-          document.body.removeChild(wrapper);
+      const btn = document.getElementById('btnDownloadAllPdf');
+      try {
+        const pages = document.querySelectorAll('#slipContainer .a4-page');
+        if (!pages.length) {
+          alert('Belum ada data slip gaji untuk diunduh.');
+          return;
         }
-      }
 
-      pdf.save(`Slip_Gaji_Semua_${periode}.pdf`);
-      showToast('PDF Gabungan berhasil diunduh!');
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          alert('Library jsPDF gagal dimuat. Pastikan koneksi internet aktif saat membuka halaman ini.');
+          return;
+        }
+
+        btn.disabled = true;
+        const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+        for (let i = 0; i < pages.length; i++) {
+          showToast(`Merender halaman PDF (${i + 1}/${pages.length})...`, 15000);
+          await new Promise(r => setTimeout(r, 30));
+
+          const wrapper = document.createElement('div');
+          wrapper.style.position = 'fixed';
+          wrapper.style.left = '-9999px';
+          wrapper.style.top = '0';
+          wrapper.style.width = '210mm';
+          wrapper.style.background = '#ffffff';
+          wrapper.style.padding = '6mm 8mm';
+
+          const clone = pages[i].cloneNode(true);
+          clone.style.boxShadow = 'none';
+          clone.style.margin = '0';
+          clone.style.padding = '0';
+          clone.style.width = '100%';
+          clone.style.minHeight = 'auto';
+
+          wrapper.appendChild(clone);
+          document.body.appendChild(wrapper);
+
+          try {
+            const canvas = await html2canvas(wrapper, {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#ffffff',
+              scrollX: 0,
+              scrollY: 0
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            const pageWidth = 210;
+            const imgHeight = (canvas.height * pageWidth) / canvas.width;
+            const ratio = imgHeight > 297 ? (297 / imgHeight) : 1;
+
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth * ratio, imgHeight * ratio);
+          } finally {
+            document.body.removeChild(wrapper);
+          }
+        }
+
+        const pdfBlob = pdf.output('blob');
+        saveAs(pdfBlob, `Slip_Gaji_Semua_${periode}.pdf`);
+        showToast('PDF Gabungan berhasil diunduh!');
+      } catch (err) {
+        console.error('Error PDF Gabungan:', err);
+        alert('Gagal membuat PDF gabungan: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     // DOWNLOAD ZIP BERISI PDF SATUAN PER KARYAWAN
