@@ -453,7 +453,7 @@
           📨 Download CSV untuk Thunderbird
         </button>
       </div>
-
+    </div>
 
     <!-- TABEL DAFTAR KARYAWAN -->
     <div class="table-card" id="employeeTableSection" style="display: none;">
@@ -642,9 +642,6 @@
 
           employees = parsedList;
           renderAll();
-          ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadZipImg', 'btnDownloadExcel', 'btnDownloadCsvMailMerge'].forEach(id => {
-  document.getElementById(id).disabled = false;
-});
           showToast(`Berhasil memuat ${employees.length} data slip gaji!`);
         } catch (err) {
           console.error(err);
@@ -844,7 +841,7 @@
 
     function renderAll() {
       document.getElementById('employeeTableSection').style.display = 'block';
-      ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadZipImg', 'btnDownloadExcel'].forEach(id => {
+      ['btnPrintAll', 'btnDownloadAllPdf', 'btnDownloadZipPdf', 'btnDownloadZipImg', 'btnDownloadExcel', 'btnDownloadCsvMailMerge'].forEach(id => {
         document.getElementById(id).disabled = false;
       });
       renderTable(employees);
@@ -893,9 +890,11 @@
 
       try {
         const canvas = await html2canvas(wrapper, {
-          scale: 2.5, // Resolusi tajam saat dibuka di HP
+          scale: 2.5,
           backgroundColor: '#ffffff',
-          useCORS: true
+          useCORS: true,
+          scrollX: 0,
+          scrollY: 0
         });
         return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       } finally {
@@ -941,7 +940,7 @@
         margin: 5,
         filename: `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
@@ -957,20 +956,62 @@
       showToast(`PDF ${emp.nama} berhasil diunduh!`);
     }
 
-    // DOWNLOAD PDF GABUNGAN (3 SLIP PER HALAMAN A4)
+    // DOWNLOAD PDF GABUNGAN (3 SLIP PER HALAMAN A4 - ANTI BLANK)
     async function downloadMergedPdf() {
+      const pages = document.querySelectorAll('#slipContainer .a4-page');
+      if (!pages.length) {
+        alert('Belum ada data slip gaji untuk diunduh.');
+        return;
+      }
+
       const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
-      showToast('Sedang merender PDF seluruh karyawan, harap tunggu...');
-      const element = document.getElementById('slipContainer');
-      const opt = {
-        margin: 0,
-        filename: `Slip_Gaji_Semua_${periode}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], after: '.a4-page' }
-      };
-      await html2pdf().set(opt).from(element).save();
+      const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+      const pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+      for (let i = 0; i < pages.length; i++) {
+        showToast(`Merender halaman PDF (${i + 1}/${pages.length})...`, 15000);
+        await new Promise(r => setTimeout(r, 20));
+
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '-9999px';
+        wrapper.style.top = '0';
+        wrapper.style.width = '210mm';
+        wrapper.style.background = '#ffffff';
+        wrapper.style.padding = '6mm 8mm';
+
+        const clone = pages[i].cloneNode(true);
+        clone.style.boxShadow = 'none';
+        clone.style.margin = '0';
+        clone.style.padding = '0';
+        clone.style.width = '100%';
+        clone.style.minHeight = 'auto';
+
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
+        try {
+          const canvas = await html2canvas(wrapper, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0
+          });
+
+          const imgData = canvas.toDataURL('image/jpeg', 0.98);
+          const pageWidth = 210;
+          const imgHeight = (canvas.height * pageWidth) / canvas.width;
+          const ratio = imgHeight > 297 ? (297 / imgHeight) : 1;
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth * ratio, imgHeight * ratio);
+        } finally {
+          document.body.removeChild(wrapper);
+        }
+      }
+
+      pdf.save(`Slip_Gaji_Semua_${periode}.pdf`);
       showToast('PDF Gabungan berhasil diunduh!');
     }
 
@@ -1098,34 +1139,35 @@
       XLSX.writeFile(wb, `Slip_Gaji_${periode.replace(/\s+/g, '_')}.xlsx`);
       showToast('File Excel Slip Gaji berhasil diunduh!');
     }
+
     function exportThunderbirdCsv() {
-  const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
-  const rows = [['Email', 'Nama', 'NIK', 'Bagian', 'THP', 'Periode', 'NamaFilePDF']];
+      const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
+      const rows = [['Email', 'Nama', 'NIK', 'Bagian', 'THP', 'Periode', 'NamaFilePDF']];
 
-  employees.forEach((emp, i) => {
-    if (!emp.email) return; // Hanya karyawan yang memiliki alamat email
-    const safeFileName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-    rows.push([
-      emp.email,
-      emp.nama,
-      emp.nik,
-      emp.bagian,
-      formatRupiah(emp.takeHomePay),
-      periode,
-      safeFileName
-    ]);
-  });
+      employees.forEach((emp, i) => {
+        if (!emp.email) return;
+        const safeFileName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        rows.push([
+          emp.email,
+          emp.nama,
+          emp.nik,
+          emp.bagian,
+          formatRupiah(emp.takeHomePay),
+          periode,
+          safeFileName
+        ]);
+      });
 
-  if (rows.length === 1) {
-    alert('Tidak ada data email karyawan yang terisi di file Excel upload.');
-    return;
-  }
+      if (rows.length === 1) {
+        alert('Tidak ada data email karyawan yang terisi di file Excel upload.');
+        return;
+      }
 
-  const csvContent = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  saveAs(blob, `Daftar_Kirim_Thunderbird_${periode.replace(/\s+/g, '_')}.csv`);
-  showToast(`CSV Thunderbird (${rows.length - 1} penerima) berhasil diunduh!`);
-}
+      const csvContent = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, `Daftar_Kirim_Thunderbird_${periode.replace(/\s+/g, '_')}.csv`);
+      showToast(`CSV Thunderbird (${rows.length - 1} penerima) berhasil diunduh!`);
+    }
   </script>
 </body>
 </html>
