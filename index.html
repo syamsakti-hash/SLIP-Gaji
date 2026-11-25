@@ -514,6 +514,30 @@
       window._toastTimer = setTimeout(() => { t.style.display = 'none'; }, duration);
     }
 
+    // Helper: Bersihkan nama karyawan agar aman dijadikan nama file (.pdf)
+    function sanitizeFileName(nama) {
+      return String(nama || 'Karyawan')
+        .replace(/[\/\\:*?"<>|]/g, '') // hapus karakter terlarang di macOS/Windows
+        .replace(/\s+/g, ' ')           // rapikan spasi ganda
+        .trim();
+    }
+
+    // Helper: Generate nama file PDF unik berdasarkan NAMA KARYAWAN saja
+    function getUniquePdfNames(list) {
+      const usedCounts = {};
+      return list.map(emp => {
+        const baseName = sanitizeFileName(emp.nama);
+        const key = baseName.toLowerCase();
+        if (!usedCounts[key]) {
+          usedCounts[key] = 1;
+          return `${baseName}.pdf`;
+        } else {
+          usedCounts[key] += 1;
+          return `${baseName} (${usedCounts[key]}).pdf`;
+        }
+      });
+    }
+
     function formatNumber(num) {
       if (num === null || num === undefined || isNaN(num) || Math.round(num) === 0) return '-';
       const rounded = Math.round(num);
@@ -640,6 +664,12 @@
             alert('Data karyawan tidak ditemukan. Pastikan data mulai di baris ke-4 sesuai template.');
             return;
           }
+
+          // Simpan nama file PDF unik (Nama Karyawan saja) ke masing-masing object
+          const pdfFileNames = getUniquePdfNames(parsedList);
+          parsedList.forEach((emp, idx) => {
+            emp.pdfFileName = pdfFileNames[idx];
+          });
 
           employees = parsedList;
           renderAll();
@@ -908,7 +938,7 @@
       const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
       showToast(`Membuat gambar PNG untuk ${emp.nama}...`);
       const blob = await generatePngBlob(emp);
-      saveAs(blob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.png`);
+      saveAs(blob, `Slip_Gaji_${sanitizeFileName(emp.nama)}_${periode}.png`);
       showToast(`Gambar PNG ${emp.nama} berhasil diunduh!`);
     }
 
@@ -920,7 +950,7 @@
         const emp = employees[i];
         showToast(`Memproses PNG (${i + 1}/${employees.length}): ${emp.nama}...`, 10000);
         const blob = await generatePngBlob(emp);
-        const safeName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+        const safeName = `${sanitizeFileName(emp.nama)}.png`;
         zip.file(safeName, blob);
       }
       showToast('Mengompres gambar ke file ZIP...');
@@ -929,7 +959,7 @@
       showToast('File ZIP Gambar PNG berhasil diunduh!');
     }
 
-    // GENERATE PDF SATUAN
+    // GENERATE PDF SATUAN (NAMA FILE = NAMA KARYAWAN SAJA)
     async function generatePdfBlob(emp) {
       const wrapper = document.createElement('div');
       wrapper.style.padding = '10mm';
@@ -937,9 +967,10 @@
       wrapper.style.width = '200mm';
       wrapper.innerHTML = buildSlipHtml(emp, false);
 
+      const fileName = emp.pdfFileName || `${sanitizeFileName(emp.nama)}.pdf`;
       const opt = {
         margin: 5,
-        filename: `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}.pdf`,
+        filename: fileName,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -948,13 +979,14 @@
       return await html2pdf().set(opt).from(wrapper).outputPdf('blob');
     }
 
+    // DOWNLOAD PDF SATUAN (NAMA FILE = NAMA KARYAWAN SAJA)
     async function downloadSinglePdf(idx) {
       const emp = employees[idx];
-      const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
+      const fileName = emp.pdfFileName || `${sanitizeFileName(emp.nama)}.pdf`;
       showToast(`Membuat PDF untuk ${emp.nama}...`);
       const blob = await generatePdfBlob(emp);
-      saveAs(blob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.pdf`);
-      showToast(`PDF ${emp.nama} berhasil diunduh!`);
+      saveAs(blob, fileName);
+      showToast(`PDF ${fileName} berhasil diunduh!`);
     }
 
     // DOWNLOAD PDF GABUNGAN (3 SLIP PER HALAMAN A4 - ANTI BLANK)
@@ -1031,15 +1063,15 @@
       }
     }
 
-    // DOWNLOAD ZIP BERISI PDF SATUAN PER KARYAWAN
+    // DOWNLOAD ZIP BERISI PDF SATUAN PER KARYAWAN (NAMA FILE = NAMA KARYAWAN SAJA)
     async function downloadZipIndividualPdf() {
       const periode = (document.getElementById('periodeInput').value || 'OKTOBER_2026').replace(/\s+/g, '_');
       const zip = new JSZip();
       for (let i = 0; i < employees.length; i++) {
         const emp = employees[i];
-        showToast(`Memproses PDF (${i + 1}/${employees.length}): ${emp.nama}...`, 10000);
+        const safeName = emp.pdfFileName || `${sanitizeFileName(emp.nama)}.pdf`;
+        showToast(`Memproses PDF (${i + 1}/${employees.length}): ${safeName}...`, 10000);
         const blob = await generatePdfBlob(emp);
-        const safeName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         zip.file(safeName, blob);
       }
       showToast('Mengompres PDF ke file ZIP...');
@@ -1093,7 +1125,7 @@
       if (copiedToClipboard) {
         showToast(`✅ Gambar slip ${emp.nama} tersalin! Tinggal tekan Ctrl+V (atau Cmd+V) di chat WhatsApp.`, 6500);
       } else {
-        saveAs(pngBlob, `Slip_Gaji_${emp.nama.replace(/\s+/g, '_')}_${periode}.png`);
+        saveAs(pngBlob, `Slip_Gaji_${sanitizeFileName(emp.nama)}_${periode}.png`);
         showToast(`Gambar slip ${emp.nama} diunduh. Silakan lampirkan di chat WhatsApp.`, 6000);
       }
 
@@ -1156,13 +1188,14 @@
       showToast('File Excel Slip Gaji berhasil diunduh!');
     }
 
+    // EXPORT CSV UNTUK THUNDERBIRD (NAMA FILE PDF = NAMA KARYAWAN SAJA)
     function exportThunderbirdCsv() {
       const periode = document.getElementById('periodeInput').value || 'OKTOBER 2026';
       const rows = [['Email', 'Nama', 'NIK', 'Bagian', 'THP', 'Periode', 'NamaFilePDF']];
 
-      employees.forEach((emp, i) => {
+      employees.forEach((emp) => {
         if (!emp.email) return;
-        const safeFileName = `${emp.nik || (i + 1)}_${emp.nama.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        const safeFileName = emp.pdfFileName || `${sanitizeFileName(emp.nama)}.pdf`;
         rows.push([
           emp.email,
           emp.nama,
