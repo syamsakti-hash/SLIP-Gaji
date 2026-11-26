@@ -599,18 +599,47 @@
           const sheet = workbook.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-          // Deteksi kolom tambahan (Email & WA) dari baris header 1-3
+          // Deteksi posisi kolom dari baris header (baris 1-3 / indeks 0-2)
           let emailColIdx = -1;
           let waColIdx = -1;
+          let tunjMakanColIdx = -1;
+          let lemburShiftColIdx = -1;
+          let lemburJumlahColIdx = -1;
+          let uangMakanLemburColIdx = -1;
+
           for (let r = 0; r < Math.min(4, rows.length); r++) {
             rows[r].forEach((cellVal, cIdx) => {
-              const txt = String(cellVal || '').toLowerCase().trim();
+              const txt = String(cellVal || '').toLowerCase().replace(/\s+/g, ' ').trim();
               if (txt.includes('email') || txt.includes('e-mail')) emailColIdx = cIdx;
               if (txt === 'wa' || txt.includes('whatsapp') || txt.includes('no wa') || txt.includes('no. wa') || txt.includes('hp') || txt.includes('telp')) {
                 waColIdx = cIdx;
               }
+              if (txt.includes('tunj. uang makan') || txt.includes('tunj uang makan') || txt.includes('tunjangan uang makan')) {
+                tunjMakanColIdx = cIdx;
+              }
+              if (txt === 'shift') {
+                lemburShiftColIdx = cIdx;
+              }
+              if (txt.includes('uang makan lembur')) {
+                uangMakanLemburColIdx = cIdx;
+              }
             });
           }
+
+          // Sub-kolom "Jumlah" di bawah "Lembur" berada tepat di sebelah kanan kolom "Shift"
+          if (lemburShiftColIdx >= 0) {
+            const nextHeader = String((rows[2] && rows[2][lemburShiftColIdx + 1]) || (rows[1] && rows[1][lemburShiftColIdx + 1]) || '')
+              .toLowerCase().trim();
+            if (nextHeader === 'jumlah' || nextHeader === '') {
+              lemburJumlahColIdx = lemburShiftColIdx + 1;
+            }
+          }
+
+          // Fallback indeks kolom sesuai struktur template DATA UPLOAD
+          const idxMakan = tunjMakanColIdx >= 0 ? tunjMakanColIdx : 14;                     // Kolom O: Tunj. Uang Makan
+          const idxLemburShift = lemburShiftColIdx >= 0 ? lemburShiftColIdx : 16;           // Kolom Q: Lembur -> Shift
+          const idxLemburJumlah = lemburJumlahColIdx >= 0 ? lemburJumlahColIdx : 17;        // Kolom R: Lembur -> Jumlah
+          const idxUangMakanLembur = uangMakanLemburColIdx >= 0 ? uangMakanLemburColIdx : 18; // Kolom S: Uang Makan Lembur
 
           const parsedList = [];
           for (let i = 3; i < rows.length; i++) {
@@ -622,9 +651,18 @@
             const totalPotongan = parseNum(row[30]);  // Kolom AE (index 30)
             const koreksi = parseNum(row[33]);        // Kolom AH (index 33)
 
-            // RUMUS: gross prorate - total potongan + koreksi
+            // RUMUS THP: gross prorate - total potongan + koreksi
             const takeHomePay = grossProrate - totalPotongan + koreksi;
             const jumlahPendapatan = grossProrate + koreksi;
+
+            // Tunjangan makan dari kolom Tunj. Uang Makan
+            const tunjMakan = parseNum(row[idxMakan]);
+
+            // Lembur = kolom Jumlah (di bawah Lembur) + kolom Uang Makan Lembur
+            const lemburShift = parseNum(row[idxLemburShift]);
+            const nominalJumlahLembur = parseNum(row[idxLemburJumlah]);
+            const nominalUangMakanLembur = parseNum(row[idxUangMakanLembur]);
+            const lemburJumlah = nominalJumlahLembur + nominalUangMakanLembur;
 
             parsedList.push({
               no: row[0] || (parsedList.length + 1),
@@ -638,9 +676,9 @@
               tunjKpi: parseNum(row[8]),          // I
               hariKerja: parseNum(row[12]),       // M (Real Kehadiran)
               efisiensi: parseNum(row[15]),       // P (Prorate Efisiensi)
-              tunjMakan: parseNum(row[14]),       // O (Tunj. Uang Makan)
-              lemburShift: parseNum(row[16]),     // Q (Lembur Shift)
-              lemburJumlah: parseNum(row[19]) || parseNum(row[17]), // T atau R
+              tunjMakan: tunjMakan,               // Kolom Tunj. Uang Makan
+              lemburShift: lemburShift,           // Kolom Shift (Lembur)
+              lemburJumlah: lemburJumlah,         // Kolom Jumlah (Lembur) + Uang Makan Lembur
               grossProrate: grossProrate,         // U
               pph21: parseNum(row[21]),           // V
               bpjs: parseNum(row[22]),            // W
