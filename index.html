@@ -1256,5 +1256,15 @@
       showToast(`CSV Thunderbird (${rows.length - 1} penerima) berhasil diunduh!`);
     }
   </script>
+  <script>
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.onkeydown = function(e) {
+    if (e.keyCode === 123 || // F12
+       (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || // Ctrl+Shift+I / J
+       (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+      return false;
+    }
+  };
+</script>
 </body>
 </html>
